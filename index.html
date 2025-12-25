@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Spotify Landing Page</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+  <div id="status-alert" class="alert hidden"></div>
+
+  <div class="overlay" id="modalOverlay">
+    <div class="modal">
+      <h2 id="modalTitle">Try Premium Plans!</h2>
+      <p id="modalDesc">Enjoy ad-free music, offline playback, and high-quality audio with Spotify Premium.</p>
+      <button onclick="goToPlans()">See Plans</button>
+      <button onclick="closeModal()">Maybe Later</button>
+    </div>
+  </div>
+
+  <div id="plans-section" class="hidden">
+    <h2>Available Premium Plans</h2>
+    <div id="plans-container" class="grid-container">
+      </div>
+  </div>
+
+  <script>
+    // 1. PAG-CHECK KUNG SUCCESS O CANCEL ANG PAYMENT
+    window.onload = () => {
+      const params = new URLSearchParams(window.location.search);
+      const status = params.get('status');
+      const alertBox = document.getElementById('status-alert');
+
+      if (status === 'success') {
+        alertBox.innerText = "✅ Payment Successful! Welcome to Premium.";
+        alertBox.className = "alert success";
+        alertBox.classList.remove('hidden');
+        document.getElementById('modalOverlay').style.display = "none"; // Itago yung modal
+      } else if (status === 'cancel') {
+        alertBox.innerText = "❌ Payment Cancelled. Try again?";
+        alertBox.className = "alert cancel";
+        alertBox.classList.remove('hidden');
+      } else {
+        document.getElementById("modalOverlay").style.display = "flex"; // Show modal normally
+      }
+    }
+
+    // 2. PAG-PAKITA NG PLANS (GINAWA NATING ISANG PAGE LANG)
+    function goToPlans() {
+      document.getElementById("modalOverlay").style.display = "none";
+      document.getElementById("plans-section").classList.remove("hidden");
+      fetchPlans();
+    }
+
+    function closeModal() {
+      document.getElementById("modalOverlay").style.display = "none";
+    }
+
+    // 3. FETCH PLANS LOGIC
+    async function fetchPlans() {
+      try {
+        const res = await fetch("/plans");
+        const plans = await res.json();
+        const container = document.getElementById("plans-container");
+        container.innerHTML = "";
+
+        plans.forEach(plan => {
+          const card = document.createElement("div");
+          card.className = "plan-card";
+          card.innerHTML = `
+            <h3>${plan.name}</h3>
+            <p>${plan.description}</p>
+            <h4>₱${(plan.price / 100).toFixed(2)}</h4>
+            <button onclick="handlePurchase('${plan.id}')">Get Started</button>
+          `;
+          container.appendChild(card);
+        });
+      } catch (err) {
+        console.error("Error loading plans");
+      }
+    }
+
+    // 4. STRIPE CHECKOUT LOGIC
+    async function handlePurchase(planId) {
+      try {
+        const res = await fetch('/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planId })
+        });
+        const data = await res.json();
+        window.location.href = data.url;
+      } catch (err) {
+        alert("Error connecting to Stripe.");
+      }
+    }
+  </script>
+
+</body>
+</html>
